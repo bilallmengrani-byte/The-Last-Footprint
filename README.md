@@ -56,7 +56,8 @@ The project uses a combination of web technologies and 3D tools:
 
 **Explore The Last Footprint:**
 
-[Launch Live Demo](https://the-last-footprint-8hf3pwzwu-bilalmengrani6-4126s-projects.vercel.app/)
+[Launch Live Demo](https://the-last-footprint.vercel.app/
+)
 
 The project runs directly in your browser. No local installation is needed.
 
