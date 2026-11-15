@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
 import { MissionId, SpacecraftHotspot } from '../data/missions';
 import { createSeededRandom } from './celestialData';
 import {
@@ -9,19 +8,11 @@ import {
   createSolarPanelTexture,
 } from './proceduralTextures';
 
-export interface FogStateRef {
-  active: boolean;
-  color: THREE.Color;
-  density: number;
-}
-
 interface SpacecraftStageProps {
   missionId: MissionId;
   hotspots: SpacecraftHotspot[];
   activeHotspotId: string | null;
   onSelectHotspot: (hotspot: SpacecraftHotspot) => void;
-  fogStateRef?: React.MutableRefObject<FogStateRef>;
-  hideMarkers?: boolean;
 }
 
 function terrainHeight(x: number, z: number, mode: 'moon' | 'mars'): number {
@@ -44,15 +35,12 @@ function terrainHeight(x: number, z: number, mode: 'moon' | 'mars'): number {
 function TerrainHorizon({
   mode,
   withTracks = false,
-  fogStateRef,
 }: {
   mode: 'moon' | 'mars';
   withTracks?: boolean;
-  fogStateRef?: React.MutableRefObject<FogStateRef>;
 }) {
   const regolith = useMemo(() => createRegolithTextures(mode), [mode]);
   const rockMeshRef = useRef<THREE.InstancedMesh>(null);
-  const fogRef = useRef<THREE.FogExp2>(null);
 
   useEffect(() => () => regolith.dispose(), [regolith]);
 
@@ -116,23 +104,10 @@ function TerrainHorizon({
     mesh.computeBoundingSphere();
   }, [rockData]);
 
-  useFrame(() => {
-    const fog = fogRef.current;
-    if (!fog) return;
-    if (fogStateRef?.current?.active) {
-      fog.color.copy(fogStateRef.current.color);
-      fog.density = fogStateRef.current.density;
-    }
-  });
-
   return (
     <group position={[0, -0.68, 0]}>
       {/* Horizon distance fog fading ground edges into deep lunar black or dusty Martian ochre */}
-      <fogExp2
-        ref={fogRef}
-        attach="fog"
-        args={[mode === 'moon' ? '#05070b' : '#1b100d', 0.095]}
-      />
+      <fogExp2 attach="fog" args={[mode === 'moon' ? '#05070b' : '#1b100d', 0.095]} />
 
       {/* Undulating Regolith Ground */}
       <mesh geometry={terrainGeo}>
@@ -740,11 +715,7 @@ function SojournerRoverAssembly() {
 /**
  * 04 — Opportunity Rover (MER-B)
  */
-function OpportunityRoverAssembly({
-  fogStateRef,
-}: {
-  fogStateRef?: React.MutableRefObject<FogStateRef>;
-}) {
+function OpportunityRoverAssembly() {
   const solarTex = useMemo(() => createSolarPanelTexture(), []);
   const kapton = useMemo(() => createKaptonFoilTextures(), []);
   useEffect(() => {
@@ -808,7 +779,7 @@ function OpportunityRoverAssembly({
 
   return (
     <group position={[0, 0.05, 0]}>
-      <TerrainHorizon mode="mars" withTracks fogStateRef={fogStateRef} />
+      <TerrainHorizon mode="mars" withTracks />
 
       {/* Warm Electronics Box */}
       <mesh position={[0, 0.14, 0]} material={webGoldMat}>
@@ -1092,36 +1063,33 @@ export default function SpacecraftStage({
   hotspots,
   activeHotspotId,
   onSelectHotspot,
-  fogStateRef,
-  hideMarkers = false,
 }: SpacecraftStageProps) {
   return (
     <group>
       {missionId === 'apollo-11-descent' && <Apollo11DescentAssembly />}
       {missionId === 'lunar-roving-vehicle' && <LunarRovingVehicleAssembly />}
       {missionId === 'sojourner' && <SojournerRoverAssembly />}
-      {missionId === 'opportunity' && <OpportunityRoverAssembly fogStateRef={fogStateRef} />}
+      {missionId === 'opportunity' && <OpportunityRoverAssembly />}
       {missionId === 'ingenuity' && <IngenuityAssembly />}
       {missionId === 'pioneer-10' && <Pioneer10Assembly />}
 
-      {/* Subtle survey pin anchors on spacecraft (hidden during scroll-driven cinematic) */}
-      {!hideMarkers &&
-        hotspots.map((hs) => {
-          const isActive = hs.id === activeHotspotId;
-          return (
-            <mesh
-              key={hs.id}
-              position={hs.position}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectHotspot(hs);
-              }}
-            >
-              <sphereGeometry args={[isActive ? 0.028 : 0.02, 10, 10]} />
-              <meshBasicMaterial color={isActive ? '#d4a36a' : '#c8ced8'} />
-            </mesh>
-          );
-        })}
+      {/* Subtle survey pin anchors on spacecraft */}
+      {hotspots.map((hs) => {
+        const isActive = hs.id === activeHotspotId;
+        return (
+          <mesh
+            key={hs.id}
+            position={hs.position}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectHotspot(hs);
+            }}
+          >
+            <sphereGeometry args={[isActive ? 0.028 : 0.02, 10, 10]} />
+            <meshBasicMaterial color={isActive ? '#d4a36a' : '#c8ced8'} />
+          </mesh>
+        );
+      })}
     </group>
   );
 }

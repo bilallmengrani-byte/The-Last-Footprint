@@ -11,29 +11,45 @@ import {
 import { ExperienceView, SpaceViewport } from './three/SpaceViewport';
 import { IntroOverlay } from './components/IntroOverlay';
 import { MissionDossier } from './components/MissionDossier';
-import { MissionPanel } from './components/MissionPanel';
 import { ArchiveSourcesModal } from './components/ArchiveSourcesModal';
 import { Fallback2DArchive } from './components/Fallback2DArchive';
+import { TactileSimConsole } from './components/TactileSimConsole';
 import { soundEngine } from './audio/soundEngine';
 
 const STORAGE_KEY = 'last-footprint-archive-v1';
 
 interface SavedProgress {
   lockedMissions: MissionId[];
+  completedSims: MissionId[];
+  directorChoices: Record<string, string>;
   inspectedHotspots: Record<string, string[]>;
 }
 
 function loadProgress(): SavedProgress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { lockedMissions: [], inspectedHotspots: {} };
-    const parsed = JSON.parse(raw) as SavedProgress;
+    if (!raw) {
+      return {
+        lockedMissions: [],
+        completedSims: [],
+        directorChoices: {},
+        inspectedHotspots: {},
+      };
+    }
+    const parsed = JSON.parse(raw) as Partial<SavedProgress>;
     return {
       lockedMissions: Array.isArray(parsed.lockedMissions) ? parsed.lockedMissions : [],
+      completedSims: Array.isArray(parsed.completedSims) ? parsed.completedSims : [],
+      directorChoices: parsed.directorChoices ?? {},
       inspectedHotspots: parsed.inspectedHotspots ?? {},
     };
   } catch {
-    return { lockedMissions: [], inspectedHotspots: {} };
+    return {
+      lockedMissions: [],
+      completedSims: [],
+      directorChoices: {},
+      inspectedHotspots: {},
+    };
   }
 }
 
@@ -42,21 +58,16 @@ export default function App() {
   const [activeDestination, setActiveDestination] = useState<DestinationId | null>(null);
   const [activeMissionId, setActiveMissionId] = useState<MissionId | null>(null);
   const [activeHotspot, setActiveHotspot] = useState<SpacecraftHotspot | null>(null);
+  const [stageMode, setStageMode] = useState<'3d-inspect' | 'cockpit-sim'>('3d-inspect');
   const [entryIntensity, setEntryIntensity] = useState(0);
 
   const [isMuted, setIsMuted] = useState(true);
   const [use2DMode, setUse2DMode] = useState(false);
   const [hudCollapsed, setHudCollapsed] = useState(false);
   const [modalMode, setModalMode] = useState<'archive' | 'sources' | null>(null);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() =>
-    typeof window !== 'undefined'
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      : false,
-  );
 
   const [progress, setProgress] = useState<SavedProgress>(() => loadProgress());
   const entryTimerRef = useRef<number | null>(null);
-  const missionProgressRef = useRef(0);
 
   useEffect(() => {
     try {
@@ -66,16 +77,12 @@ export default function App() {
     }
   }, [progress]);
 
-  // Respect prefers-reduced-motion on initial load and live OS preference updates
+  // Respect prefers-reduced-motion on initial load
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (mq.matches) {
-      setPrefersReducedMotion(true);
       setView('hub');
     }
-    const onChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
   }, []);
 
   const triggerEntryTransition = useCallback((destId: DestinationId) => {
@@ -106,18 +113,18 @@ export default function App() {
 
   const handleSelectMission = useCallback((missionId: MissionId) => {
     const mission = MISSIONS[missionId];
-    missionProgressRef.current = 0;
     setActiveDestination(mission.destinationId);
     setActiveMissionId(missionId);
     setActiveHotspot(null);
+    setStageMode('3d-inspect');
     setView('mission');
   }, []);
 
   const handleReturnToHub = useCallback(() => {
-    missionProgressRef.current = 0;
     setActiveDestination(null);
     setActiveMissionId(null);
     setActiveHotspot(null);
+    setStageMode('3d-inspect');
     setEntryIntensity(0);
     setView('hub');
   }, []);
@@ -131,6 +138,30 @@ export default function App() {
       };
     });
   }, []);
+
+  const handleCompleteSim = useCallback((missionId: MissionId) => {
+    setProgress((prev) => {
+      if (prev.completedSims.includes(missionId)) return prev;
+      return {
+        ...prev,
+        completedSims: [...prev.completedSims, missionId],
+      };
+    });
+  }, []);
+
+  const handleSelectDirectorChoice = useCallback(
+    (missionId: MissionId, decisionId: string, optionId: string) => {
+      const key = `${missionId}:${decisionId}`;
+      setProgress((prev) => ({
+        ...prev,
+        directorChoices: {
+          ...prev.directorChoices,
+          [key]: optionId,
+        },
+      }));
+    },
+    [],
+  );
 
   const handleSelectHotspot = useCallback(
     (hotspot: SpacecraftHotspot | null) => {
@@ -183,8 +214,7 @@ export default function App() {
           activeMissionId={activeMissionId}
           activeHotspot={activeHotspot}
           entryIntensity={entryIntensity}
-          scrollProgressRef={missionProgressRef}
-          prefersReducedMotion={prefersReducedMotion}
+          hideHotspotPins={stageMode === 'cockpit-sim'}
           onSelectDestination={handleSelectDestination}
           onSelectHotspot={(hs) => handleSelectHotspot(hs)}
           onWebglFallback={() => setUse2DMode(true)}
@@ -391,58 +421,65 @@ export default function App() {
       )}
 
       {/* Mission Encounter / Story View */}
-      {view === 'mission' &&
-        activeMission &&
-        (activeMission.id === 'opportunity' &&
-        activeMission.beats &&
-        activeMission.beats.length > 0 &&
-        !use2DMode ? (
-          <MissionPanel
-            mission={activeMission}
-            beats={activeMission.beats}
-            scrollProgressRef={missionProgressRef}
-            prefersReducedMotion={prefersReducedMotion}
-            isSignalLocked={progress.lockedMissions.includes(activeMission.id)}
-            inspectedHotspots={progress.inspectedHotspots[activeMission.id] ?? []}
-            activeHotspot={activeHotspot}
-            onLockSignal={() => handleLockSignal(activeMission.id)}
-            onSelectHotspot={handleSelectHotspot}
-            onBackToDestination={() => {
-              missionProgressRef.current = 0;
-              setActiveMissionId(null);
-              setActiveHotspot(null);
-              setView('destination');
-            }}
-            onNextMission={handleNextMission}
-          />
-        ) : (
-          <>
-            {/* Left-bottom quiet 3D viewport hint (keeps center unobstructed) */}
-            <div className="pointer-events-none fixed bottom-5 left-6 z-20 hidden lg:block">
-              <div className="hairline-box px-3.5 py-2 font-mono-tech text-[10px] uppercase tracking-[0.12em] text-[#8b95a5]">
-                3D Reconstruction · Drag to Orbit · Scroll to Zoom · Click Markers
+      {view === 'mission' && activeMission && (
+        <>
+          {/* Tactile Cockpit / Surface Camera Console Overlay */}
+          {stageMode === 'cockpit-sim' && (
+            <TactileSimConsole
+              mission={activeMission}
+              isCompleted={progress.completedSims.includes(activeMission.id)}
+              onCompleteSim={() => handleCompleteSim(activeMission.id)}
+              onCloseSim={() => setStageMode('3d-inspect')}
+            />
+          )}
+
+          {/* Left-bottom stage mode switcher & viewport cue */}
+          {stageMode === '3d-inspect' && (
+            <div className="pointer-events-none fixed top-[65px] left-4 md:top-auto md:bottom-5 md:left-6 z-20 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playRelayClick();
+                  setStageMode('cockpit-sim');
+                }}
+                className="pointer-events-auto hairline-box border-[#d4a36a]/65 px-3.5 py-2 font-mono-tech text-[10px] uppercase tracking-[0.12em] text-[#ededef] hover:border-[#d4a36a] hover:bg-[#d4a36a]/15 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                Open Tactile Console ·{' '}
+                {progress.completedSims.includes(activeMission.id) ? 'Replay' : 'Play Task'}
+              </button>
+              <div className="hidden lg:block hairline-box px-3.5 py-2 font-mono-tech text-[10px] uppercase tracking-[0.12em] text-[#8b95a5]">
+                Drag to Orbit · Scroll to Zoom · Click Markers
               </div>
             </div>
+          )}
 
-            {/* Right Dossier Panel (responsive full-height drawer on desktop, lower sheet on mobile) */}
-            <div className="fixed inset-x-0 bottom-0 top-[54%] z-20 md:inset-y-0 md:left-auto md:right-0 md:top-[53px] md:w-[450px] lg:w-[480px]">
-              <MissionDossier
-                mission={activeMission}
-                isSignalLocked={progress.lockedMissions.includes(activeMission.id)}
-                inspectedHotspots={progress.inspectedHotspots[activeMission.id] ?? []}
-                activeHotspot={activeHotspot}
-                onLockSignal={() => handleLockSignal(activeMission.id)}
-                onSelectHotspot={handleSelectHotspot}
-                onBackToDestination={() => {
-                  setActiveMissionId(null);
-                  setActiveHotspot(null);
-                  setView('destination');
-                }}
-                onNextMission={handleNextMission}
-              />
-            </div>
-          </>
-        ))}
+          {/* Right Dossier Panel (responsive full-height drawer on desktop, lower sheet on mobile) */}
+          <div className="fixed inset-x-0 bottom-0 top-[54%] z-20 md:inset-y-0 md:left-auto md:right-0 md:top-[53px] md:w-[450px] lg:w-[480px]">
+            <MissionDossier
+              mission={activeMission}
+              isSignalLocked={progress.lockedMissions.includes(activeMission.id)}
+              isSimCompleted={progress.completedSims.includes(activeMission.id)}
+              stageMode={stageMode}
+              inspectedHotspots={progress.inspectedHotspots[activeMission.id] ?? []}
+              directorChoices={progress.directorChoices}
+              activeHotspot={activeHotspot}
+              onLockSignal={() => handleLockSignal(activeMission.id)}
+              onToggleStageMode={(nextMode) => setStageMode(nextMode)}
+              onSelectDirectorChoice={(decisionId, optionId) =>
+                handleSelectDirectorChoice(activeMission.id, decisionId, optionId)
+              }
+              onSelectHotspot={handleSelectHotspot}
+              onBackToDestination={() => {
+                setActiveMissionId(null);
+                setActiveHotspot(null);
+                setStageMode('3d-inspect');
+                setView('destination');
+              }}
+              onNextMission={handleNextMission}
+            />
+          </div>
+        </>
+      )}
 
       {/* Closing / Legacy Reflection View */}
       {view === 'closing' && (
@@ -484,12 +521,15 @@ export default function App() {
         <ArchiveSourcesModal
           mode={modalMode}
           lockedMissions={progress.lockedMissions}
+          completedSims={progress.completedSims}
+          directorChoices={progress.directorChoices}
           inspectedHotspots={progress.inspectedHotspots}
           onClose={() => setModalMode(null)}
           onSelectMission={handleSelectMission}
           onTriggerClosing={() => {
             setActiveMissionId(null);
             setActiveDestination(null);
+            setStageMode('3d-inspect');
             setView('closing');
           }}
         />

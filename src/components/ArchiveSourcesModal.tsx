@@ -4,8 +4,8 @@ import { MISSION_LIST, MissionId } from '../data/missions';
 interface ArchiveSourcesModalProps {
   mode: 'archive' | 'sources';
   lockedMissions: MissionId[];
-  completedSims?: MissionId[];
-  directorChoices?: Record<string, string>;
+  completedSims: MissionId[];
+  directorChoices: Record<string, string>;
   inspectedHotspots: Record<string, string[]>;
   onClose: () => void;
   onSelectMission: (id: MissionId) => void;
@@ -67,11 +67,11 @@ export function ArchiveSourcesModal({
             <div className="divide-y divide-white/10 border border-white/10">
               {MISSION_LIST.map((m) => {
                 const isLocked = lockedMissions.includes(m.id);
-                const simDone = completedSims?.includes(m.id) ?? false;
+                const simDone = completedSims.includes(m.id);
                 const hotspotsDone = (inspectedHotspots[m.id] ?? []).length;
                 const decisionChapters = m.chapters.filter((ch) => Boolean(ch.decisionPrompt));
                 const decisionsDone = decisionChapters.filter(
-                  (ch) => Boolean(ch.decisionPrompt && directorChoices?.[`${m.id}:${ch.decisionPrompt.id}`]),
+                  (ch) => Boolean(directorChoices[`${m.id}:${ch.decisionPrompt!.id}`]),
                 ).length;
 
                 return (

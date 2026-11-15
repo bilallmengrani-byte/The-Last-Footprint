@@ -19,34 +19,6 @@ const LazySpacecraftStage = React.lazy(() => import('./SpacecraftModels'));
 
 export type ExperienceView = 'intro' | 'hub' | 'destination' | 'mission' | 'closing';
 
-interface ErrorBoundaryProps {
-  onErrorFallback: () => void;
-  children: React.ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-}
-
-class WebGLErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
-
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
-  }
-
-  componentDidCatch(): void {
-    this.props.onErrorFallback();
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return null;
-    }
-    return this.props.children;
-  }
-}
-
 interface SpaceViewportProps {
   view: ExperienceView;
   activeDestination: DestinationId | null;
@@ -382,9 +354,8 @@ export function SpaceViewport({
           </div>
         </div>
       ) : (
-        <WebGLErrorBoundary onErrorFallback={onWebglFallback}>
-          <>
-            <Canvas
+        <>
+          <Canvas
             dpr={isSoftwareGl ? 1 : [1, 1.5]}
             shadows={false}
             camera={{ position: [-0.35, 0.2, 6.2], fov: 44, near: 0.1, far: 160 }}
@@ -540,7 +511,6 @@ export function SpaceViewport({
               })}
           </div>
         </>
-        </WebGLErrorBoundary>
       )}
     </div>
   );

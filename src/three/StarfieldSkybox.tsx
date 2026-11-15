@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import {
@@ -161,15 +161,6 @@ export function StarfieldSkybox({
       aldebaranPos: ald,
     };
   }, []);
-
-  useEffect(() => {
-    return () => {
-      skyDomeMat.dispose();
-      starGeometry.dispose();
-      starMaterial.dispose();
-      constellationGeometry.dispose();
-    };
-  }, [skyDomeMat, starGeometry, starMaterial, constellationGeometry]);
 
   useFrame((_, delta) => {
     if (groupRef.current && driftSpeed > 0) {

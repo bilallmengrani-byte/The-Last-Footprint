@@ -7,14 +7,14 @@ import { soundEngine } from '../audio/soundEngine';
 interface MissionDossierProps {
   mission: MissionRecord;
   isSignalLocked: boolean;
-  isSimCompleted?: boolean;
-  stageMode?: '3d-inspect' | 'cockpit-sim';
+  isSimCompleted: boolean;
+  stageMode: '3d-inspect' | 'cockpit-sim';
   inspectedHotspots: string[];
-  directorChoices?: Record<string, string>;
+  directorChoices: Record<string, string>;
   activeHotspot: SpacecraftHotspot | null;
   onLockSignal: () => void;
-  onToggleStageMode?: (mode: '3d-inspect' | 'cockpit-sim') => void;
-  onSelectDirectorChoice?: (decisionId: string, optionId: string) => void;
+  onToggleStageMode: (mode: '3d-inspect' | 'cockpit-sim') => void;
+  onSelectDirectorChoice: (decisionId: string, optionId: string) => void;
   onSelectHotspot: (hotspot: SpacecraftHotspot | null) => void;
   onBackToDestination: () => void;
   onNextMission: () => void;
@@ -45,8 +45,8 @@ export function MissionDossier({
 
   const currentChapter = mission.chapters[activeChapterIdx] ?? mission.chapters[0];
   const decision = currentChapter.decisionPrompt;
-  const chosenOptionId = decision ? directorChoices?.[`${mission.id}:${decision.id}`] : undefined;
-  const chosenOption = decision?.options?.find((opt: any) => opt.id === chosenOptionId) ?? null;
+  const chosenOptionId = decision ? directorChoices[`${mission.id}:${decision.id}`] : undefined;
+  const chosenOption = decision?.options.find((opt) => opt.id === chosenOptionId) ?? null;
 
   return (
     <aside
@@ -269,7 +269,7 @@ export function MissionDossier({
             </div>
 
             {/* Chapter-Linked Tactile Cockpit / Camera Simulation Launcher */}
-            {mission.engineeringSim && (currentChapter.simTriggerLabel ||
+            {(currentChapter.simTriggerLabel ||
               activeChapterIdx === mission.engineeringSim.chapterHintIndex) && (
               <div className="mb-4 border border-[#d4a36a]/45 bg-[#080c14] p-3.5">
                 <div className="flex items-center justify-between gap-2 mb-1.5">

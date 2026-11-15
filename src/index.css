@@ -179,10 +179,4 @@ a:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-
-  .reduced-motion-fade {
-    transition-property: opacity !important;
-    transition-duration: 320ms !important;
-    transition-timing-function: ease !important;
-  }
 }

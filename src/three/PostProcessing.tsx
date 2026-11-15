@@ -25,18 +25,14 @@ export function PostProcessing({
   entryTargetRef.current = entryIntensity;
 
   useEffect(() => {
-    try {
-      const pmrem = new THREE.PMREMGenerator(gl);
-      const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-      scene.environment = envTex;
-      return () => {
-        scene.environment = null;
-        envTex.dispose();
-        pmrem.dispose();
-      };
-    } catch {
-      return undefined;
-    }
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTex;
+    return () => {
+      scene.environment = null;
+      envTex.dispose();
+      pmrem.dispose();
+    };
   }, [gl, scene]);
 
   // Preserve harsh space terminator contrast while allowing metallic foil speculars in close-up
@@ -87,18 +83,14 @@ export function PostProcessing({
 
   useFrame((state, delta) => {
     if (!composerData) return;
-    const u = composerData.filmPass?.uniforms;
-    if (u?.uTime) {
-      u.uTime.value = state.clock.elapsedTime;
-    }
-    if (u?.uEntryIntensity) {
-      u.uEntryIntensity.value = THREE.MathUtils.damp(
-        u.uEntryIntensity.value,
-        entryTargetRef.current,
-        3.5,
-        delta,
-      );
-    }
+    const u = composerData.filmPass.uniforms;
+    u.uTime.value = state.clock.elapsedTime;
+    u.uEntryIntensity.value = THREE.MathUtils.damp(
+      u.uEntryIntensity.value,
+      entryTargetRef.current,
+      3.5,
+      delta,
+    );
     composerData.composer.render();
   }, 1);
 

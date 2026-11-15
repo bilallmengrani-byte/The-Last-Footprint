@@ -89,9 +89,6 @@ export function createSkyDomeMaterial(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
-      uAtmosphereMix: { value: 0.0 },
-      uSkyColor: { value: new THREE.Color('#2c1912') },
-      uHorizonColor: { value: new THREE.Color('#4c2b1e') },
     },
     vertexShader: `
       varying vec3 vDir;
@@ -101,9 +98,6 @@ export function createSkyDomeMaterial(): THREE.ShaderMaterial {
       }
     `,
     fragmentShader: `
-      uniform float uAtmosphereMix;
-      uniform vec3 uSkyColor;
-      uniform vec3 uHorizonColor;
       varying vec3 vDir;
 
       float hash3(vec3 p) {
@@ -147,15 +141,8 @@ export function createSkyDomeMaterial(): THREE.ShaderMaterial {
         vec3 warmCore = vec3(0.025, 0.019, 0.017) * band * smoothstep(0.25, 0.9, vDir.x * 0.5 + 0.5) * 0.45;
 
         float darkLane = exp(-galLat * 20.0) * rift * 0.55;
-        vec3 spaceCol = voidCol + (milkyCol + warmCore) * (1.0 - darkLane);
+        vec3 finalCol = voidCol + (milkyCol + warmCore) * (1.0 - darkLane);
 
-        // Planetary dusty atmospheric sky dome (horizon band -> darker zenith)
-        float elev = clamp(vDir.y, -0.05, 1.0);
-        float horizonBlend = pow(1.0 - smoothstep(-0.02, 0.62, elev), 1.6);
-        float skyDustWisp = 0.92 + 0.08 * noise3(vDir * 4.2);
-        vec3 atmoCol = mix(uSkyColor, uHorizonColor, horizonBlend) * skyDustWisp;
-
-        vec3 finalCol = mix(spaceCol, atmoCol, clamp(uAtmosphereMix, 0.0, 1.0));
         gl_FragColor = vec4(finalCol, 1.0);
       }
     `,

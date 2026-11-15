@@ -15,13 +15,45 @@ export interface TelemetryMetric {
   sourceNote: string;
 }
 
+export interface DirectorChoiceOption {
+  id: string;
+  label: string;
+  outcomeText: string;
+  isHistoricalAction: boolean;
+}
+
+export interface DirectorDecisionPrompt {
+  id: string;
+  contextLabel: string;
+  prompt: string;
+  historicalNote: string;
+  options: DirectorChoiceOption[];
+}
+
+export type EngineeringSimType =
+  | 'eagle-descent'
+  | 'lrv-vip-aim'
+  | 'sojourner-apxs'
+  | 'opportunity-dust'
+  | 'ingenuity-flight'
+  | 'pioneer-rtg';
+
+export interface EngineeringSimSpec {
+  type: EngineeringSimType;
+  title: string;
+  cameraFeedLabel: string;
+  objective: string;
+  educationalNote: string;
+  chapterHintIndex: number;
+}
+
 export interface MissionChapter {
   index: string;
   heading: string;
   subheading: string;
   body: string;
   simTriggerLabel?: string;
-  decisionPrompt?: string;
+  decisionPrompt?: DirectorDecisionPrompt;
 }
 
 export interface MissionMilestone {
@@ -43,31 +75,6 @@ export interface MissionSource {
   title: string;
   organization: string;
   url: string;
-}
-
-export interface MissionBeatLighting {
-  sunIntensity: number;
-  sunColor: string;
-  sunPosition: [number, number, number];
-  ambientIntensity: number;
-  ambientColor: string;
-  environmentIntensity: number;
-  skyColor: string;
-  horizonColor: string;
-  fogColor: string;
-  fogDensity: number;
-  starVisibility: number;
-}
-
-export interface MissionBeat {
-  id: string;
-  progress: number;
-  cameraPosition: [number, number, number];
-  cameraRotation: [number, number, number];
-  lighting: MissionBeatLighting;
-  tag: 'FACT' | 'NARRATION';
-  caption: string;
-  timestampLabel: string;
 }
 
 export interface MissionRecord {
@@ -93,12 +100,7 @@ export interface MissionRecord {
   chapters: MissionChapter[];
   timeline: MissionMilestone[];
   hotspots: SpacecraftHotspot[];
-  beats?: MissionBeat[];
-  engineeringSim?: {
-    chapterHintIndex: number;
-    title: string;
-    objective: string;
-  };
+  engineeringSim: EngineeringSimSpec;
   authenticVisualNote: {
     caption: string;
     credit: string;
@@ -225,6 +227,38 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         heading: 'The Journey',
         subheading: 'Descent over boulder-strewn Mare Tranquillitatis',
         body: 'Separating from Command Module Columbia in lunar orbit, Neil Armstrong and Buzz Aldrin fired the descent engine toward the Sea of Tranquility. Passing computer overload alarms and a rocky crater field, Armstrong piloted Eagle manually to a level patch of mare basalt with seconds of hover propellant remaining.',
+        simTriggerLabel: 'Open LM Cockpit · Pilot Final Descent Over West Crater',
+        decisionPrompt: {
+          id: 'eagle-1202-alarm',
+          contextLabel: 'Powered Descent · 1202 Program Alarm',
+          prompt:
+            'During powered descent, the Apollo Guidance Computer flashes a 1202 Executive Overflow alarm caused by an unscheduled rendezvous radar cycle. What do you advise Mission Control?',
+          historicalNote:
+            'Flight Controller Steve Bales and Margaret Hamilton’s priority-scheduling architecture gave a "GO": non-essential radar tasks were dropped automatically so landing guidance never stopped.',
+          options: [
+            {
+              id: 'abort',
+              label: 'Order immediate abort and fire ascent stage',
+              outcomeText:
+                'An abort would have saved the crew but ended the first landing attempt. Because the 1202 executive scheduler restarted priority tasks safely, Mission Control actually called "GO" to continue.',
+              isHistoricalAction: false,
+            },
+            {
+              id: 'continue-go',
+              label: 'Call "GO" and trust priority scheduling unless continuous',
+              outcomeText:
+                'Matched NASA Mission Control. Guidance computer software shed low-priority radar interrupts and kept flying Eagle toward Mare Tranquillitatis.',
+              isHistoricalAction: true,
+            },
+            {
+              id: 'cutoff-radar',
+              label: 'Shut down all landing radar telemetry immediately',
+              outcomeText:
+                'Turning off the landing radar would blind the computer to altitude and sink rate. Instead, NASA trusted priority scheduling while leaving landing radar active.',
+              isHistoricalAction: false,
+            },
+          ],
+        },
       },
       {
         index: 'III',
@@ -311,6 +345,16 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         factBasis: 'ARCHIVE RECORD',
       },
     ],
+    engineeringSim: {
+      type: 'eagle-descent',
+      title: 'LM-5 Lunar Descent & 1202 Alarm Console',
+      cameraFeedLabel: 'LM FORWARD WINDOW LPD · MARE TRANQUILLITATIS',
+      objective:
+        'Acknowledge the 1202 Executive Overflow alarm, pitch past the West Crater boulder field, and settle Eagle below 1.2 m/s sink rate before hover fuel runs out.',
+      educationalNote:
+        'Teaches why Apollo split landing and ascent stages and how priority-scheduled guidance software plus manual hover left the octagonal descent base on the Moon.',
+      chapterHintIndex: 1,
+    },
     authenticVisualNote: {
       caption:
         'Apollo 11 Lunar Module Eagle descent stage and surface equipment photographed on Mare Tranquillitatis (July 1969); orbital confirmation captured decades later by LRO.',
@@ -403,6 +447,37 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         heading: 'The Machine',
         subheading: 'Woven wire wheels and four independent motors',
         body: 'The LRV discarded rubber tires for open woven zinc-coated steel mesh with titanium chevrons for traction in powdery soil. Each wheel housed an independent 0.25-horsepower DC motor with an 80:1 harmonic drive. Between the nylon-webbing seats, a single T-shaped hand controller governed drive, steering, and braking without foot pedals.',
+        decisionPrompt: {
+          id: 'lrv-front-steering',
+          contextLabel: 'EVA-1 Deployment · Front Steering Fault',
+          prompt:
+            'Right after unfolding LRV-1 onto Mare Imbrium, front-wheel steering fails to respond while rear-wheel steering remains operational. What operational fix do you execute?',
+          historicalNote:
+            'Because the LRV used separate front and rear steering motors, Dave Scott switched off the front steering bus and drove EVA-1 entirely on rear-wheel Ackermann steering—before cycling the circuit breakers restored dual steering for EVA-2.',
+          options: [
+            {
+              id: 'rear-only',
+              label: 'Drive EVA-1 on rear-wheel steering alone',
+              outcomeText:
+                'Matched Apollo 15 crew action. Dual redundant steering buses allowed Scott and Irwin to complete the entire 10.3 km Hadley Rille drive with rear-only steering.',
+              isHistoricalAction: true,
+            },
+            {
+              id: 'abandon-rover',
+              label: 'Park LRV-1 immediately and revert to walking traverses',
+              outcomeText:
+                'Abandoning the rover would have cut off Hadley Rille and the Apennine Front. The LRV was engineered with independent steering subsystems precisely for this fault.',
+              isHistoricalAction: false,
+            },
+            {
+              id: 'drain-battery',
+              label: 'Bypass the 36V battery bus directly to front wheel motors',
+              outcomeText:
+                'Wheel traction motors were separate from the steering motor; jumping the drive bus would not steer the wheels. Rear steering redundancy solved the anomaly safely.',
+              isHistoricalAction: false,
+            },
+          ],
+        },
       },
       {
         index: 'IV',
@@ -415,6 +490,7 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         heading: 'The Silence',
         subheading: 'Left at the VIP site to film Falcon’s return to orbit',
         body: 'At the conclusion of EVA-3 on August 2, 1971, Dave Scott drove LRV-1 about 100 meters east of the lander to the designated "VIP site". He aligned the high-gain dish with Earth so controller Ed Fendell in Houston could tilt the RCA color television camera upward to capture Falcon\'s ascent stage blasting into the lunar sky.',
+        simTriggerLabel: 'Open LRV Console · Park at VIP Site & Aim Ascent TV Camera',
       },
       {
         index: 'VI',
@@ -488,6 +564,16 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         factBasis: 'ARCHIVE RECORD',
       },
     ],
+    engineeringSim: {
+      type: 'lrv-vip-aim',
+      title: 'LRV-1 VIP Parking & LCRU Dish Alignment',
+      cameraFeedLabel: 'RCA GCTA TELEVISION VIEWFINDER · HADLEY-APENNINE',
+      objective:
+        'Steer LRV-1 via T-handle to the 100 m safe standoff VIP zone, align the 0.9 m S-Band umbrella dish onto Earth, and frame LM Falcon for ascent liftoff.',
+      educationalNote:
+        'Demonstrates LRV-1’s T-handle drive, manual S-Band dish aiming, and why all three Apollo lunar rovers remain parked roughly 100 meters from their landers.',
+      chapterHintIndex: 4,
+    },
     authenticVisualNote: {
       caption:
         'Apollo 15 Lunar Roving Vehicle parked in Hadley-Apennine near the edge of Hadley Rille, photographed by Commander David Scott (August 1971).',
@@ -586,6 +672,38 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         heading: 'The Discoveries',
         subheading: 'Sniffing rocks named Barnacle Bill, Yogi, and Casper',
         body: 'On July 6, 1997, Sojourner rolled down deployment ramps onto the Martian gravel. Guided by laser hazard stripers and ground commands, it drove to rocks nicknamed Barnacle Bill and Yogi, deploying its Alpha Proton X-Ray Spectrometer (APXS) directly against their weathered crusts. It discovered silica-rich andesitic rocks, proving Ares Vallis had experienced complex geological crustal evolution.',
+        simTriggerLabel: 'Open Surface Cam · Navigate Ares Vallis & Deploy APXS Arm',
+        decisionPrompt: {
+          id: 'sojourner-apxs-approach',
+          contextLabel: 'Sol 4 · Rear-Mounted APXS Placement',
+          prompt:
+            'Sojourner must place its rear-mounted APXS spectrometer flush against the jagged rock "Barnacle Bill" with an 8-bit computer and several-minute Earth light delay. How do you command the approach?',
+          historicalNote:
+            'Because the APXS sat on Sojourner’s tail and light-time prevented live joysticking, JPL engineers turned the rover 180°, backed slowly until a rear wheel climbed slightly or contact switches triggered, and took multi-hour spectrometer readings.',
+          options: [
+            {
+              id: 'reverse-contact',
+              label: 'Rotate 180° and back slowly using onboard laser & contact sensors',
+              outcomeText:
+                'Matched JPL rover operations. Turning tail-first let Sojourner’s autonomous hazard sensors press the APXS collimator cleanly against Barnacle Bill.',
+              isHistoricalAction: true,
+            },
+            {
+              id: 'live-joystick',
+              label: 'Drive forward and joystick the arm in real time from Pasadena',
+              outcomeText:
+                'Round-trip radio light time to Mars took 20+ minutes and the APXS was rear-mounted. Live joysticking would risk colliding with boulders before telemetry arrived.',
+              isHistoricalAction: false,
+            },
+            {
+              id: 'skip-contact',
+              label: 'Analyze rock composition remotely from 2 meters away',
+              outcomeText:
+                'Alpha-particle and X-ray spectroscopy required direct millimeter-scale contact against the rock surface—making physical navigation essential.',
+              isHistoricalAction: false,
+            },
+          ],
+        },
       },
       {
         index: 'V',
@@ -665,6 +783,16 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         factBasis: 'ARCHIVE RECORD',
       },
     ],
+    engineeringSim: {
+      type: 'sojourner-apxs',
+      title: 'IMP Surface Camera & APXS Rock Approach',
+      cameraFeedLabel: 'IMAGER FOR MARS PATHFINDER · ARES VALLIS LASER GRID',
+      objective:
+        'Steer the 6-wheel Rocker-Bogie chassis around Ares Vallis boulders using laser hazard lines, align rear-first at Barnacle Bill, and deploy the APXS sensor.',
+      educationalNote:
+        'Explains Sojourner’s Rocker-Bogie suspension, 16 W solar deck, laser-stripe obstacle detection, and rear-mounted APXS chemistry readings.',
+      chapterHintIndex: 3,
+    },
     authenticVisualNote: {
       caption:
         'Sojourner rover investigating the volcanic rock Yogi in Ares Vallis, photographed by the Imager for Mars Pathfinder (IMP) on Sagan Memorial Station (July 1997).',
@@ -713,146 +841,6 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
     signalTargetNormalized: 0.51,
     signalBandLabel: 'X-Band High-Gain & UHF Relay',
     signalBandVerified: true,
-    beats: [
-      {
-        id: 'opp-arrival',
-        progress: 0.0,
-        cameraPosition: [3.0, 1.35, 3.2],
-        cameraRotation: [-0.3074, 0.7371, 0.2102],
-        lighting: {
-          sunIntensity: 5.2,
-          sunColor: '#fff3e0',
-          sunPosition: [-14, 5.4, 6.5],
-          ambientIntensity: 0.14,
-          ambientColor: '#523023',
-          environmentIntensity: 0.28,
-          skyColor: '#2c1912',
-          horizonColor: '#4c2b1e',
-          fogColor: '#3a2117',
-          fogDensity: 0.068,
-          starVisibility: 0.06,
-        },
-        tag: 'FACT',
-        timestampLabel: '2004-01-25 · EAGLE CRATER',
-        caption:
-          'Launched July 7, 2003, Opportunity bounced inside airbags into Eagle Crater on January 25, 2004, beginning a 90-sol mission.',
-      },
-      {
-        id: 'opp-pancam',
-        progress: 0.2,
-        cameraPosition: [1.55, 1.38, 1.85],
-        cameraRotation: [-0.358, 0.7598, 0.2522],
-        lighting: {
-          sunIntensity: 4.5,
-          sunColor: '#ffedd4',
-          sunPosition: [-14, 4.6, 6.5],
-          ambientIntensity: 0.12,
-          ambientColor: '#4a2a1e',
-          environmentIntensity: 0.24,
-          skyColor: '#25150f',
-          horizonColor: '#412318',
-          fogColor: '#311b13',
-          fogDensity: 0.075,
-          starVisibility: 0.05,
-        },
-        tag: 'NARRATION',
-        timestampLabel: 'MERIDIANI PLANUM · PANCAM & IDD',
-        caption:
-          'Its Pancam mast surveyed Meridiani Planum while its robotic arm uncovered hematite blueberries and ancient water-formed rock.',
-      },
-      {
-        id: 'opp-traverse',
-        progress: 0.4,
-        cameraPosition: [-2.15, 1.28, 1.95],
-        cameraRotation: [-0.5089, -0.7795, -0.3737],
-        lighting: {
-          sunIntensity: 3.5,
-          sunColor: '#fce2c2',
-          sunPosition: [-14, 3.8, 6.5],
-          ambientIntensity: 0.09,
-          ambientColor: '#3d2218',
-          environmentIntensity: 0.19,
-          skyColor: '#1d100c',
-          horizonColor: '#341c14',
-          fogColor: '#261510',
-          fogDensity: 0.084,
-          starVisibility: 0.04,
-        },
-        tag: 'FACT',
-        timestampLabel: '45.16 KM ODOMETER · ENDEAVOUR RIM',
-        caption:
-          'Powered by wind-cleaned solar wings, six rocker-bogie wheels carried Opportunity 45.16 kilometers across Victoria and Endeavour craters.',
-      },
-      {
-        id: 'opp-dust-storm',
-        progress: 0.6,
-        cameraPosition: [-2.35, 1.05, -1.75],
-        cameraRotation: [-2.616, -0.9351, -2.7049],
-        lighting: {
-          sunIntensity: 1.7,
-          sunColor: '#e8b588',
-          sunPosition: [-14, 2.8, 6.5],
-          ambientIntensity: 0.055,
-          ambientColor: '#2b1711',
-          environmentIntensity: 0.11,
-          skyColor: '#130b09',
-          horizonColor: '#21120d',
-          fogColor: '#190e0b',
-          fogDensity: 0.1,
-          starVisibility: 0.02,
-        },
-        tag: 'NARRATION',
-        timestampLabel: 'LATE MAY 2018 · GLOBAL DUST STORM',
-        caption:
-          "In late May 2018, a planet-encircling dust storm swallowed Perseverance Valley, starving Opportunity's solar arrays of sunlight.",
-      },
-      {
-        id: 'opp-last-contact',
-        progress: 0.8,
-        cameraPosition: [0.65, 1.08, -1.85],
-        cameraRotation: [-2.7713, 0.4134, 2.9869],
-        lighting: {
-          sunIntensity: 0.36,
-          sunColor: '#c98b63',
-          sunPosition: [-14, 1.9, 6.5],
-          ambientIntensity: 0.02,
-          ambientColor: '#18100f',
-          environmentIntensity: 0.045,
-          skyColor: '#070506',
-          horizonColor: '#0c0808',
-          fogColor: '#090607',
-          fogDensity: 0.116,
-          starVisibility: 0.0,
-        },
-        tag: 'FACT',
-        timestampLabel: '2018-06-10 · SOL 5111 FINAL SIGNAL',
-        caption:
-          'On June 10, 2018, Sol 5111, Opportunity sent its final signal; over 1,000 recovery commands went unanswered.',
-      },
-      {
-        id: 'opp-silence',
-        progress: 1.0,
-        cameraPosition: [3.35, 1.48, 3.65],
-        cameraRotation: [-0.325, 0.7158, 0.2176],
-        lighting: {
-          sunIntensity: 0.04,
-          sunColor: '#8d6858',
-          sunPosition: [-14, 1.2, 6.5],
-          ambientIntensity: 0.006,
-          ambientColor: '#08090d',
-          environmentIntensity: 0.012,
-          skyColor: '#020305',
-          horizonColor: '#040406',
-          fogColor: '#020305',
-          fogDensity: 0.132,
-          starVisibility: 0.0,
-        },
-        tag: 'NARRATION',
-        timestampLabel: '2019-02-13 · MISSION COMPLETE',
-        caption:
-          'Declared complete February 13, 2019 after 5,111 sols, Opportunity rests silent beneath Martian dust in Perseverance Valley.',
-      },
-    ],
     telemetry: [
       {
         label: 'NSSDCA ID',
@@ -909,6 +897,38 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         heading: 'The Silence',
         subheading: 'Swallowed by the 2018 global dust storm',
         body: 'In late May 2018, a colossal dust storm grew to encircle the entire planet, darkening skies above Perseverance Valley until sunlight could no longer recharge Opportunity’s batteries. Its final transmission arrived on June 10, 2018 (Sol 5111). After more than 1,000 recovery commands went unanswered, NASA concluded the mission on February 13, 2019.',
+        simTriggerLabel: 'Open Pancam Console · Survive Dust Opacity on Sol 5111',
+        decisionPrompt: {
+          id: 'opp-dust-hibernation',
+          contextLabel: 'Sol 5111 · Global Dust Storm Tau > 10',
+          prompt:
+            'Atmospheric dust opacity over Perseverance Valley climbs past tau 10, cutting solar array output below survival levels. How do you configure Opportunity’s systems?',
+          historicalNote:
+            'JPL engineers suspended driving and science instruments, placing Opportunity into a low-power fault mode where the mission clock slept until enough sunlight returned to recharge batteries—sending a final status ping on June 10, 2018.',
+          options: [
+            {
+              id: 'deep-fault-sleep',
+              label: 'Shed science loads and enter low-power fault hibernation',
+              outcomeText:
+                'Matched JPL flight protocol. Cutting arm, camera, and wheel heaters conserved remaining watt-hours so Opportunity could survive weeks of darkness if the sky cleared in time.',
+              isHistoricalAction: true,
+            },
+            {
+              id: 'drive-ridge',
+              label: 'Drive uphill out of Perseverance Valley during the storm',
+              outcomeText:
+                'Driving in near-total darkness drains batteries immediately without guaranteeing clearer skies—leaving the rover stranded mid-slope without power for survival heaters.',
+              isHistoricalAction: false,
+            },
+            {
+              id: 'keep-mast-heaters',
+              label: 'Keep full mast camera heaters running continuously',
+              outcomeText:
+                'Continuous heater load exhausts batteries completely within a single sol, risking irreversible cold damage to main avionics.',
+              isHistoricalAction: false,
+            },
+          ],
+        },
       },
       {
         index: 'VI',
@@ -982,6 +1002,16 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         factBasis: 'ARCHIVE RECORD',
       },
     ],
+    engineeringSim: {
+      type: 'opportunity-dust',
+      title: 'Pancam Horizon & Sol 5111 Power Survival',
+      cameraFeedLabel: 'PANCAM STEREO MAST · PERSEVERANCE VALLEY (TAU > 10)',
+      objective:
+        'Shed non-essential instrument draws, trim array tilt toward scattered zenith light, and transmit Opportunity’s final DSN telemetry frame before battery depletion.',
+      educationalNote:
+        'Teaches Opportunity’s solar-wing dependence, how Martian wind cleaning enabled 5,111 sols of exploration, and why the 2018 global storm ended operations.',
+      chapterHintIndex: 4,
+    },
     authenticVisualNote: {
       caption:
         'Opportunity’s final 360-degree panorama from Perseverance Valley, captured May–June 2018 just before the global dust storm ended communications.',
@@ -1074,6 +1104,7 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         heading: 'The Machine',
         subheading: 'Ultra-light carbon blades spinning at ~2,500 rpm',
         body: 'Ingenuity combined two counter-rotating 1.2-meter carbon-fiber rotor blades, an upper solar panel charging six lithium-ion batteries, a warm insulated fuselage box holding flight computers and navigation cameras, and four slender carbon-composite landing legs. Every gram was budgeted for Martian lift.',
+        simTriggerLabel: 'Open Nav Cam · Test 2,500 RPM Lift & Flight 72 Ripples',
       },
       {
         index: 'IV',
@@ -1086,6 +1117,37 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         heading: 'The Silence',
         subheading: 'Featureless sand ripples and Flight 72',
         body: 'On January 18, 2024, during a brief vertical check flight over smooth, featureless sand ripples in Jezero Crater, Ingenuity’s vision-navigation algorithm lacked enough surface texture to track horizontal drift. A hard sloped touchdown damaged its carbon-fiber rotor blades, permanently ending flight operations on January 25, 2024.',
+        decisionPrompt: {
+          id: 'ingenuity-flight72-nav',
+          contextLabel: 'Flight 72 · Vision Navigation Over Sand Ripples',
+          prompt:
+            'At 12 meters above Valinor Hills sand ripples, Ingenuity’s downward navigation camera reports zero high-contrast surface landmarks to track drift. Why did this pose an acute hazard on touchdown?',
+          historicalNote:
+            'Unlike Earth helicopters with GPS, Ingenuity tracked pixel-by-pixel ground texture visually to null out lateral velocity before landing. Smooth sand ripples deprived the algorithm of landmarks, resulting in uncommanded sideways speed at touchdown.',
+          options: [
+            {
+              id: 'optical-drift',
+              label: 'Without visual ground landmarks, lateral drift goes uncorrected at touchdown',
+              outcomeText:
+                'Exact engineering cause confirmed by NASA/JPL. Undetected horizontal velocity combined with sloped terrain caused the rotor blades to strike the sand.',
+              isHistoricalAction: true,
+            },
+            {
+              id: 'gps-loss',
+              label: 'Mars GPS satellites temporarily dropped out over Jezero Crater',
+              outcomeText:
+                'Mars has no GPS constellation; Ingenuity relied completely on an onboard downward black-and-white navigation camera paired with an inertial measurement unit.',
+              isHistoricalAction: false,
+            },
+            {
+              id: 'excess-density',
+              label: 'Sudden spike in Martian atmospheric density stalled the carbon rotors',
+              outcomeText:
+                'Mars atmosphere remained around 1% Earth sea-level density; the grounding stemmed from optical navigation loss over smooth sand ripples, not air thickness.',
+              isHistoricalAction: false,
+            },
+          ],
+        },
       },
       {
         index: 'VI',
@@ -1159,6 +1221,16 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         factBasis: 'ARCHIVE RECORD',
       },
     ],
+    engineeringSim: {
+      type: 'ingenuity-flight',
+      title: 'Coaxial Rotor Lift & Optical-Flow Nav Cam',
+      cameraFeedLabel: 'DOWNWARD NAV CAMERA · JEZERO CRATER / VALINOR HILLS',
+      objective:
+        'Spin coaxial rotors to ~2,500 rpm to lift in 1% Mars air over Wright Brothers Field, then inspect how featureless sand ripples disrupt drift lock on Flight 72.',
+      educationalNote:
+        'Teaches Martian rotor aerodynamics (high RPM + ultra-light 1.2 m carbon blades) and optical-flow terrain navigation without GPS.',
+      chapterHintIndex: 2,
+    },
     authenticVisualNote: {
       caption:
         'Ingenuity on the Martian surface photographed by Perseverance’s Mastcam-Z, and post-Flight 72 imagery showing the damaged rotor blade tip shadow.',
@@ -1246,6 +1318,7 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         heading: 'The Machine',
         subheading: 'A 2.74-meter dish and plutonium power far from the Sun',
         body: 'Because sunlight at Jupiter is 25 times weaker than at Earth, Pioneer 10 replaced solar panels with four SNAP-19 radioisotope thermoelectric generators (RTGs) mounted on twin long booms. Spin-stabilized around a 2.74-meter parabolic dish antenna, it also carried a gold-anodized aluminum plaque depicting humanity’s cosmic address.',
+        simTriggerLabel: 'Open RTG Bus · Manage Power Out to 82.1 AU',
       },
       {
         index: 'IV',
@@ -1258,6 +1331,37 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         heading: 'The Silence',
         subheading: 'A fading whisper at 82.1 Astronomical Units',
         body: 'Routine science operations ended in March 1997, yet NASA’s Deep Space Network continued occasional tracking as RTG electrical output steadily decayed. The final, telemetry-less carrier signal was detected on January 23, 2003, from roughly 82.1 AU away. Later listening attempts in 2003 and 2006 heard only cosmic silence.',
+        decisionPrompt: {
+          id: 'pioneer-rtg-shedding',
+          contextLabel: 'Outer Heliosphere · Declining SNAP-19 Output',
+          prompt:
+            'Decades beyond Jupiter, plutonium-238 decay drops Pioneer 10’s RTG power bus too low to simultaneously heat instruments, collect data, and transmit telemetry. What priority sustains contact to 82.1 AU?',
+          historicalNote:
+            'NASA engineers progressively switched off individual science instruments—eventually sending only a bare, unmodulated S-Band carrier tone—so the Deep Space Network could still verify trajectory and heliosphere distance until January 23, 2003.',
+          options: [
+            {
+              id: 'shed-instruments',
+              label: 'Power down science instruments to preserve the S-Band carrier transmitter',
+              outcomeText:
+                'Matched NASA Ames operations. Shedding instrument loads extended Pioneer 10’s detectable beacon to ~82.1 AU before transmitter threshold finally dropped.',
+              isHistoricalAction: true,
+            },
+            {
+              id: 'deploy-backup-solar',
+              label: 'Deploy reserve solar wings to supplement RTG output',
+              outcomeText:
+                'Pioneer 10 carried no solar panels; at 80+ AU, sunlight is over 6,000 times weaker than at Earth, making photovoltaics unusable.',
+              isHistoricalAction: false,
+            },
+            {
+              id: 'keep-all-science',
+              label: 'Keep all imaging and particle sensors powered simultaneously',
+              outcomeText:
+                'Leaving full loads online collapses bus voltage immediately, silencing both science sensors and Earth communications years earlier.',
+              isHistoricalAction: false,
+            },
+          ],
+        },
       },
       {
         index: 'VI',
@@ -1331,6 +1435,16 @@ export const MISSIONS: Record<MissionId, MissionRecord> = {
         factBasis: 'ARCHIVE RECORD',
       },
     ],
+    engineeringSim: {
+      type: 'pioneer-rtg',
+      title: 'SNAP-19 Power Bus & 82.1 AU Carrier Console',
+      cameraFeedLabel: 'CANOPUS STAR TRACKER & DSN 70M RECEIVER · OUTER HELIOSPHERE',
+      objective:
+        'Step Pioneer 10 from Jupiter out to 82.1 AU while shedding science instruments as Pu-238 decays so the 2.74 m dish keeps locking a carrier signal with Earth.',
+      educationalNote:
+        'Explains why deep-space missions use SNAP-19 RTGs rather than solar panels and how gradual power decay turned Pioneer 10 silent in 2003.',
+      chapterHintIndex: 2,
+    },
     authenticVisualNote: {
       caption:
         'Pioneer 10 hardware before launch and its historic 1973 Jupiter flyby visualization from NASA Ames / NSSDCA.',
