@@ -1,0 +1,6 @@
+{
+  "name": "The Last Footprint — Abandoned but Not Forgotten",
+  "description": "A cinematic 3D space-history archive exploring humanity's silent and still-travelling spacecraft across the Moon, Mars, and deep space, grounded in NASA/NSSDCA records.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
