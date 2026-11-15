@@ -25,31 +25,84 @@ interface SavedProgress {
   inspectedHotspots: Record<string, string[]>;
 }
 
+function emptyProgress(): SavedProgress {
+  return {
+    lockedMissions: [],
+    completedSims: [],
+    directorChoices: {},
+    inspectedHotspots: {},
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isMissionId(value: unknown): value is MissionId {
+  return typeof value === 'string' && Object.hasOwn(MISSIONS, value);
+}
+
+function loadMissionIds(value: unknown): MissionId[] {
+  return Array.isArray(value) ? [...new Set(value.filter(isMissionId))] : [];
+}
+
+function loadDirectorChoices(value: unknown): Record<string, string> {
+  if (!isRecord(value)) return {};
+  const validChoices = new Map<string, Set<string>>();
+  for (const mission of MISSION_LIST) {
+    for (const chapter of mission.chapters) {
+      if (chapter.decisionPrompt) {
+        validChoices.set(
+          `${mission.id}:${chapter.decisionPrompt.id}`,
+          new Set(chapter.decisionPrompt.options.map((option) => option.id)),
+        );
+      }
+    }
+  }
+
+  const choices: [string, string][] = [];
+  for (const [key, optionId] of Object.entries(value)) {
+    if (typeof optionId === 'string' && validChoices.get(key)?.has(optionId)) {
+      choices.push([key, optionId]);
+    }
+  }
+  return Object.fromEntries(choices);
+}
+
+function loadInspectedHotspots(value: unknown): Record<string, string[]> {
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([missionId, hotspots]) => {
+      if (!isMissionId(missionId) || !Array.isArray(hotspots)) return [];
+      const hotspotIds = new Set(MISSIONS[missionId].hotspots.map((hotspot) => hotspot.id));
+      const validHotspots = [
+        ...new Set(
+          hotspots.filter(
+            (hotspot): hotspot is string =>
+              typeof hotspot === 'string' && hotspotIds.has(hotspot),
+          ),
+        ),
+      ];
+      return validHotspots.length > 0 ? [[missionId, validHotspots]] : [];
+    }),
+  );
+}
+
 function loadProgress(): SavedProgress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return {
-        lockedMissions: [],
-        completedSims: [],
-        directorChoices: {},
-        inspectedHotspots: {},
-      };
-    }
-    const parsed = JSON.parse(raw) as Partial<SavedProgress>;
+    if (!raw) return emptyProgress();
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) return emptyProgress();
+
     return {
-      lockedMissions: Array.isArray(parsed.lockedMissions) ? parsed.lockedMissions : [],
-      completedSims: Array.isArray(parsed.completedSims) ? parsed.completedSims : [],
-      directorChoices: parsed.directorChoices ?? {},
-      inspectedHotspots: parsed.inspectedHotspots ?? {},
+      lockedMissions: loadMissionIds(parsed.lockedMissions),
+      completedSims: loadMissionIds(parsed.completedSims),
+      directorChoices: loadDirectorChoices(parsed.directorChoices),
+      inspectedHotspots: loadInspectedHotspots(parsed.inspectedHotspots),
     };
   } catch {
-    return {
-      lockedMissions: [],
-      completedSims: [],
-      directorChoices: {},
-      inspectedHotspots: {},
-    };
+    return emptyProgress();
   }
 }
 
@@ -69,6 +122,15 @@ export default function App() {
   const [progress, setProgress] = useState<SavedProgress>(() => loadProgress());
   const entryTimerRef = useRef<number | null>(null);
 
+  useEffect(
+    () => () => {
+      if (entryTimerRef.current !== null) {
+        window.clearTimeout(entryTimerRef.current);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
@@ -86,10 +148,13 @@ export default function App() {
   }, []);
 
   const triggerEntryTransition = useCallback((destId: DestinationId) => {
-    if (entryTimerRef.current) window.clearTimeout(entryTimerRef.current);
+    if (entryTimerRef.current !== null) {
+      window.clearTimeout(entryTimerRef.current);
+    }
     const level = destId === 'mars' ? 0.92 : destId === 'moon' ? 0.35 : 0.55;
     setEntryIntensity(level);
     entryTimerRef.current = window.setTimeout(() => {
+      entryTimerRef.current = null;
       setEntryIntensity(0);
     }, 1750);
   }, []);
@@ -99,6 +164,8 @@ export default function App() {
     soundEngine.setMuted(nextMuted);
     setIsMuted(nextMuted);
   }, [isMuted]);
+
+  const handleIntroComplete = useCallback(() => setView('hub'), []);
 
   const handleSelectDestination = useCallback(
     (destId: DestinationId) => {
@@ -226,7 +293,7 @@ export default function App() {
         <IntroOverlay
           isMuted={isMuted}
           onToggleAudio={handleToggleAudio}
-          onComplete={() => setView('hub')}
+          onComplete={handleIntroComplete}
         />
       )}
 
